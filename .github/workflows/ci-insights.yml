@@ -1,0 +1,37 @@
+name: CI Insights Upload
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create a JUnit report
+        run: |
+          cat > report.xml <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuites>
+            <testsuite name="bbp_suite" tests="2" failures="0" errors="0" time="0.5">
+              <testcase classname="bbp.control" name="bbp_control_cli_D" time="0.2"/>
+              <testcase classname="bbp.control" name="bbp_control_cli_E" time="0.3"/>
+            </testsuite>
+          </testsuites>
+          XML
+          cat report.xml
+
+      - name: Install mergify-cli
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Mergifyio/mergify-cli/main/install.sh | sh
+          echo "PATH candidates:"; ls -la "$HOME/.local/bin" 2>/dev/null || true
+          command -v mergify || echo "$HOME/.local/bin/mergify"
+
+      - name: Upload test results to CI Insights
+        env:
+          MERGIFY_TOKEN: ${{ secrets.MERGIFY_TOKEN }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          mergify ci junit-process report.xml --test-language python
